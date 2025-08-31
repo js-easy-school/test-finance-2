@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Сравнение котировок российских акций по секторам</title>
+    <!-- Подключаем Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.0.2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.0.4/build/global/luxon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.0.0"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #34495e;
+            --accent-color: #3498db;
+            --text-color: #333;
+            --background-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --border-color: #e0e0e0;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--background-color);
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+        
+        .description {
+            color: var(--secondary-color);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .control-card {
+            background-color: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .control-title {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: var(--primary-color);
+        }
+        
+        .sectors {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        
+        .sector-item {
+            display: flex;
+            align-items: center;
+        }
+        
+        .sector-item input {
+            margin-right: 8px;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 500px;
+            margin-bottom: 30px;
+            background-color: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .info-panel {
+            background-color: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .info-title {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: var(--primary-color);
+        }
+        
+        @media (max-width: 768px) {
+            .controls {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-container {
+                height: 400px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .chart-container {
+                height: 300px;
+            }
+            
+            .sectors {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Сравнение котировок российских акций по секторам</h1>
+            <p class="description">
+                Интерактивная визуализация динамики акций различных секторов экономики России. 
+                Выберите сектора для сравнения, чтобы увидеть их совместную динамику на графике.
+            </p>
+        </header>
+        
+        <div class="controls">
+            <div class="control-card">
+                <h3 class="control-title">Сектора экономики</h3>
+                <div class="sectors" id="sectorsContainer">
+                    <!-- Сектора будут добавлены через JavaScript -->
+                </div>
+            </div>
+            
+            <div class="control-card">
+                <h3 class="control-title">Настройки графика</h3>
+                <div class="chart-controls">
+                    <div>
+                        <label for="normalization">Нормализовать графики:</label>
+                        <input type="checkbox" id="normalization" name="normalization">
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <label for="period">Период:</label>
+                        <select id="period" name="period">
+                            <option value="7">1 неделя</option>
+                            <option value="30" selected>1 месяц</option>
+                            <option value="90">3 месяца</option>
+                            <option value="180">6 месяцев</option>
+                            <option value="365">1 год</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <canvas id="stockChart"></canvas>
+        </div>
+        
+        <div class="info-panel">
+            <h3 class="info-title">Информация о котировках</h3>
+            <p>Данные обновляются ежедневно в 19:00 по московскому времени.</p>
+            <p>Выберите сектора для отображения соответствующих графиков.</p>
+            <p>Используйте нормализацию для сравнения относительной динамики вместо абсолютных значений.</p>
+        </div>
+    </div>
+
+    <script>
+        // Данные по секторам и акциям (в реальном проекте эти данные будут приходить из API)
+        const sectorsData = {
+            'Нефть и газ': {
+                color: '#FF6384',
+                stocks: ['Газпром', 'Роснефть', 'Лукойл', 'Новатэк', 'Татнефть'],
+                data: generateSampleData(30, 2500, 5000)
+            },
+            'Финансы': {
+                color: '#36A2EB',
+                stocks: ['Сбербанк', 'ВТБ', 'Московская биржа', 'Тинькофф'],
+                data: generateSampleData(30, 100, 350)
+            },
+            'Металлы и добыча': {
+                color: '#FFCE56',
+                stocks: ['Норникель', 'Полюс', 'Алроса', 'Северсталь', 'НЛМК'],
+                data: generateSampleData(30, 1500, 3000)
+            },
+            'Технологии': {
+                color: '#4BC0C0',
+                stocks: ['Яндекс', 'Ozon', 'VK', 'Ростелеком', 'МТС'],
+                data: generateSampleData(30, 300, 1200)
+            },
+            'Потребительские товары': {
+                color: '#9966FF',
+                stocks: ['Магнит', 'X5 Group', 'Дикси', 'Черкизово', 'Белуга'],
+                data: generateSampleData(30, 500, 2000)
+            },
+            'Энергетика': {
+                color: '#FF9F40',
+                stocks: ['РусГидро', 'Интер РАО', 'ФСК ЕЭС', 'Россети'],
+                data: generateSampleData(30, 0.5, 2.5)
+            }
+        };
+
+        // Генерация случайных данных для демонстрации
+        function generateSampleData(days, minPrice, maxPrice) {
+            const data = [];
+            let currentPrice = (minPrice + maxPrice) / 2;
+            const today = new Date();
+            
+            for (let i = days - 1; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                
+                // Генерируем случайное изменение цены (-3% до +3%)
+                const changePercent = (Math.random() * 6) - 3;
+                currentPrice = currentPrice * (1 + changePercent / 100);
+                
+                // Ограничиваем цену заданным диапазоном
+                currentPrice = Math.max(minPrice, Math.min(maxPrice, currentPrice));
+                
+                data.push({
+                    time: date.toISOString().split('T')[0],
+                    value: parseFloat(currentPrice.toFixed(2))
+                });
+            }
+            
+            return data;
+        }
+
+        // Инициализация страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            // Заполняем сектора
+            const sectorsContainer = document.getElementById('sectorsContainer');
+            for (const sector in sectorsData) {
+                const sectorItem = document.createElement('div');
+                sectorItem.className = 'sector-item';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `sector-${sector}`;
+                checkbox.value = sector;
+                checkbox.checked = true;
+                
+                const label = document.createElement('label');
+                label.htmlFor = `sector-${sector}`;
+                label.innerHTML = `${sector} <span style="color: ${sectorsData[sector].color}">●</span>`;
+                
+                sectorItem.appendChild(checkbox);
+                sectorItem.appendChild(label);
+                sectorsContainer.appendChild(sectorItem);
+                
+                // Обработчик изменения состояния checkbox
+                checkbox.addEventListener('change', updateChart);
+            }
+            
+            // Обработчик изменения периода
+            document.getElementById('period').addEventListener('change', updateChart);
+            
+            // Обработчик изменения нормализации
+            document.getElementById('normalization').addEventListener('change', updateChart);
+            
+            // Инициализируем график
+            initializeChart();
+        });
+
+        // Инициализация графика
+        function initializeChart() {
+            const ctx = document.getElementById('stockChart').getContext('2d');
+            
+            // Подготовка данных
+            const chartData = getChartData();
+            
+            // Создание графика
+            window.stockChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: chartData.datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'day',
+                                tooltipFormat: 'dd MMM yyyy'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Дата'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Цена'
+                            },
+                            beginAtZero: false
+                        }
+                    },
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${context.parsed.y.toFixed(2)}`;
+                                }
+                            }
+                        },
+                        legend: {
+                            position: 'top',
+                        }
+                    }
+                }
+            });
+        }
+
+        // Подготовка данных для графика
+        function getChartData() {
+            const sectors = Array.from(document.querySelectorAll('.sector-item input:checked')).map(cb => cb.value);
+            const period = parseInt(document.getElementById('period').value);
+            const normalize = document.getElementById('normalization').checked;
+            
+            const datasets = [];
+            
+            sectors.forEach(sector => {
+                const sectorInfo = sectorsData[sector];
+                if (!sectorInfo) return;
+                
+                // Берем только данные за выбранный период
+                const sectorData = sectorInfo.data.slice(-period);
+                
+                // Нормализуем данные если нужно
+                let displayData = sectorData;
+                if (normalize) {
+                    const firstValue = sectorData[0].value;
+                    displayData = sectorData.map(item => ({
+                        time: item.time,
+                        value: (item.value / firstValue) * 100
+                    }));
+                }
+                
+                datasets.push({
+                    label: sector,
+                    data: displayData,
+                    borderColor: sectorInfo.color,
+                    backgroundColor: `${sectorInfo.color}20`,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    fill: false,
+                    tension: 0.1
+                });
+            });
+            
+            return { datasets };
+        }
+
+        // Обновление графика
+        function updateChart() {
+            if (window.stockChart) {
+                const newData = getChartData();
+                window.stockChart.data.datasets = newData.datasets;
+                
+                // Обновляем ось Y в зависимости от нормализации
+                const normalize = document.getElementById('normalization').checked;
+                window.stockChart.options.scales.y.title.text = normalize ? 'Изменение (%)' : 'Цена';
+                
+                window.stockChart.update();
+            }
+        }
+    </script>
+</body>
+</html>
