@@ -1,401 +1,1628 @@
 <!DOCTYPE html>
 <html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Сравнение котировок российских акций по секторам</title>
-    <!-- Подключаем Chart.js -->
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Анализ доходности российских акций и облигаций</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.0.2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/luxon@3.0.4/build/global/luxon.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.0.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
     <style>
-        :root {
-            --primary-color: #2c3e50;
-            --secondary-color: #34495e;
-            --accent-color: #3498db;
-            --text-color: #333;
-            --background-color: #f8f9fa;
-            --card-bg: #ffffff;
-            --border-color: #e0e0e0;
+      :root {
+        --primary-color: #2c3e50;
+        --secondary-color: #3498db;
+        --accent-color: #e74c3c;
+        --light-color: #ecf0f1;
+        --success-color: #27ae60;
+        --warning-color: #f39c12;
+        --stock-color: #3498db;
+        --bond-color: #9b59b6;
+        --dividend-color: #27ae60;
+        --coupon-color: #e74c3c;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      body {
+        background-color: #f5f7fa;
+        color: #333;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      header {
+        background: linear-gradient(
+          135deg,
+          var(--primary-color) 0%,
+          #1a2530 100%
+        );
+        color: white;
+        padding: 25px 0;
+        text-align: center;
+        margin-bottom: 30px;
+        border-radius: 0 0 10px 10px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+      }
+
+      .header-description {
+        font-size: 1.1rem;
+        max-width: 600px;
+        margin: 0 auto;
+        opacity: 0.9;
+      }
+
+      .tabs {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 25px;
+        background-color: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+      }
+
+      .tab {
+        padding: 16px 35px;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-weight: 600;
+        flex: 1;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .tab.active {
+        background: linear-gradient(
+          135deg,
+          var(--secondary-color) 0%,
+          #2980b9 100%
+        );
+        color: white;
+      }
+
+      .tab:hover:not(.active) {
+        background-color: #eef5fd;
+      }
+
+      .search-container {
+        background-color: white;
+        padding: 25px;
+        border-radius: 10px;
+        margin-bottom: 25px;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+      }
+
+      .search-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+      }
+
+      .search-title {
+        font-size: 1.4rem;
+        color: var(--primary-color);
+      }
+
+      .search-box {
+        display: flex;
+        gap: 12px;
+      }
+
+      input[type="text"],
+      input[type="number"] {
+        padding: 14px 18px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 16px;
+        transition: border-color 0.3s;
+      }
+
+      input[type="text"]:focus,
+      input[type="number"]:focus {
+        border-color: var(--secondary-color);
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+      }
+
+      .search-input {
+        flex: 2;
+      }
+
+      .quantity-input {
+        width: 120px;
+      }
+
+      button {
+        padding: 14px 22px;
+        background: linear-gradient(
+          135deg,
+          var(--secondary-color) 0%,
+          #2980b9 100%
+        );
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s;
+      }
+
+      button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .btn-delete {
+        background: linear-gradient(
+          135deg,
+          var(--accent-color) 0%,
+          #c0392b 100%
+        );
+        padding: 6px 12px;
+        font-size: 13px;
+      }
+
+      .btn-delete:hover {
+        background: linear-gradient(135deg, #c0392b 0%, #a93226 100%);
+      }
+
+      .results-container {
+        background-color: white;
+        border-radius: 8px;
+        margin-top: 12px;
+        max-height: 220px;
+        overflow-y: auto;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+        display: none;
+        z-index: 100;
+        position: absolute;
+        width: calc(100% - 50px);
+        border: 1px solid #eee;
+      }
+
+      .result-item {
+        padding: 12px 18px;
+        border-bottom: 1px solid #eee;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .result-item:hover {
+        background-color: #f9f9f9;
+      }
+
+      .assets-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 25px;
+        margin-bottom: 35px;
+      }
+
+      .asset-section {
+        background-color: white;
+        border-radius: 10px;
+        padding: 25px;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+        position: relative;
+      }
+
+      .asset-section h3 {
+        margin-bottom: 18px;
+        color: var(--primary-color);
+        border-bottom: 2px solid #eee;
+        padding-bottom: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .asset-list {
+        max-height: 320px;
+        overflow-y: auto;
+      }
+
+      .asset-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 0;
+        border-bottom: 1px solid #eee;
+        align-items: center;
+      }
+
+      .asset-info {
+        flex: 1;
+      }
+
+      .asset-name {
+        font-weight: 600;
+        color: var(--primary-color);
+      }
+
+      .asset-ticker {
+        color: #7f8c8d;
+        font-size: 0.9rem;
+      }
+
+      .asset-details {
+        display: flex;
+        gap: 15px;
+        margin-top: 5px;
+        font-size: 0.9rem;
+      }
+
+      .asset-detail {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .asset-value {
+        color: var(--success-color);
+        margin-right: 10px;
+        font-weight: 600;
+      }
+
+      .asset-actions {
+        display: flex;
+        gap: 6px;
+      }
+
+      .charts-container {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 25px;
+      }
+
+      .chart-box {
+        background-color: white;
+        border-radius: 10px;
+        padding: 25px;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+      }
+
+      .chart-box h3 {
+        margin-bottom: 18px;
+        color: var(--primary-color);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .chart-container {
+        position: relative;
+        height: 350px;
+        width: 100%;
+      }
+
+      .empty-message {
+        text-align: center;
+        color: #7f8c8d;
+        padding: 25px;
+        font-style: italic;
+      }
+
+      .summary {
+        display: flex;
+        justify-content: space-around;
+        margin-top: 20px;
+        text-align: center;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 8px;
+        padding: 15px;
+      }
+
+      .summary-item {
+        padding: 15px;
+      }
+
+      .summary-value {
+        font-size: 1.6rem;
+        font-weight: bold;
+        color: var(--primary-color);
+      }
+
+      .summary-label {
+        color: #7f8c8d;
+        font-size: 0.9rem;
+      }
+
+      .percentage-change {
+        font-size: 0.9rem;
+        margin-left: 5px;
+      }
+
+      .positive-change {
+        color: var(--success-color);
+      }
+
+      .negative-change {
+        color: var(--accent-color);
+      }
+
+      .icon-wrapper {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background-color: rgba(52, 152, 219, 0.1);
+        color: var(--secondary-color);
+      }
+
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        align-items: center;
+        justify-content: center;
+      }
+
+      .modal-content {
+        background-color: white;
+        padding: 25px;
+        border-radius: 10px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        width: 400px;
+        max-width: 90%;
+      }
+
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+
+      .close {
+        font-size: 24px;
+        cursor: pointer;
+      }
+
+      .form-group {
+        margin-bottom: 15px;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+      }
+
+      .loading {
+        text-align: center;
+        padding: 20px;
+        color: #7f8c8d;
+      }
+
+      @media (max-width: 768px) {
+        .assets-container {
+          grid-template-columns: 1fr;
         }
-        
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
+
+        .search-box {
+          flex-direction: column;
         }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: var(--text-color);
-            background-color: var(--background-color);
-            padding: 20px;
+
+        .summary {
+          flex-direction: column;
         }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
+
+        .quantity-input {
+          width: 100%;
         }
-        
-        header {
-            text-align: center;
-            margin-bottom: 30px;
-            padding: 20px;
-            background-color: var(--card-bg);
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        
-        h1 {
-            color: var(--primary-color);
-            margin-bottom: 10px;
-        }
-        
-        .description {
-            color: var(--secondary-color);
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        
-        .controls {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .control-card {
-            background-color: var(--card-bg);
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        
-        .control-title {
-            font-size: 18px;
-            margin-bottom: 15px;
-            color: var(--primary-color);
-        }
-        
-        .sectors {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 10px;
-        }
-        
-        .sector-item {
-            display: flex;
-            align-items: center;
-        }
-        
-        .sector-item input {
-            margin-right: 8px;
-        }
-        
-        .chart-container {
-            position: relative;
-            height: 500px;
-            margin-bottom: 30px;
-            background-color: var(--card-bg);
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        
-        .info-panel {
-            background-color: var(--card-bg);
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        
-        .info-title {
-            font-size: 18px;
-            margin-bottom: 15px;
-            color: var(--primary-color);
-        }
-        
-        @media (max-width: 768px) {
-            .controls {
-                grid-template-columns: 1fr;
-            }
-            
-            .chart-container {
-                height: 400px;
-            }
-        }
-        
-        @media (max-width: 480px) {
-            .chart-container {
-                height: 300px;
-            }
-            
-            .sectors {
-                grid-template-columns: 1fr 1fr;
-            }
-        }
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
+    <header>
+      <div class="container">
+        <h1>
+          <i class="fas fa-chart-line"></i> Анализ доходности акций и облигаций
+        </h1>
+        <p class="header-description">
+          Отслеживайте прибыль от дивидендов, купонов и роста стоимости активов
+          российских компаний
+        </p>
+      </div>
+    </header>
+
     <div class="container">
-        <header>
-            <h1>Сравнение котировок российских акций по секторам</h1>
-            <p class="description">
-                Интерактивная визуализация динамики акций различных секторов экономики России. 
-                Выберите сектора для сравнения, чтобы увидеть их совместную динамику на графике.
-            </p>
-        </header>
-        
-        <div class="controls">
-            <div class="control-card">
-                <h3 class="control-title">Сектора экономики</h3>
-                <div class="sectors" id="sectorsContainer">
-                    <!-- Сектора будут добавлены через JavaScript -->
-                </div>
+      <div class="tabs">
+        <div class="tab active" data-tab="stocks">
+          <i class="fas fa-chart-bar"></i> Акции
+        </div>
+        <div class="tab" data-tab="bonds">
+          <i class="fas fa-hand-holding-usd"></i> Облигации
+        </div>
+      </div>
+
+      <div class="search-container">
+        <div class="search-header">
+          <h2 class="search-title">Добавление активов</h2>
+          <div class="total-values">
+            <span
+              >Портфель: <strong id="total-portfolio-value">0 ₽</strong></span
+            >
+          </div>
+        </div>
+        <div class="search-box">
+          <input
+            type="text"
+            id="search-input"
+            class="search-input"
+            placeholder="Введите название или тикер российской компании..."
+          />
+          <input
+            type="number"
+            id="quantity-input"
+            class="quantity-input"
+            placeholder="Количество"
+            min="1"
+            value="1"
+          />
+          <button id="search-btn"><i class="fas fa-search"></i> Найти</button>
+        </div>
+        <div class="results-container" id="search-results">
+          <div class="loading" id="loading-indicator">
+            <i class="fas fa-spinner fa-spin"></i> Загрузка данных...
+          </div>
+        </div>
+      </div>
+
+      <div class="assets-container">
+        <div class="asset-section">
+          <h3>
+            <span><i class="fas fa-chart-bar"></i> Ваши акции</span>
+            <span id="stocks-total">0</span>
+          </h3>
+          <div class="asset-list" id="stocks-list">
+            <div class="empty-message">Добавьте акции через поиск</div>
+          </div>
+          <div class="summary">
+            <div class="summary-item">
+              <div class="summary-value" id="stocks-value">0 ₽</div>
+              <div class="summary-label">Общая стоимость</div>
             </div>
-            
-            <div class="control-card">
-                <h3 class="control-title">Настройки графика</h3>
-                <div class="chart-controls">
-                    <div>
-                        <label for="normalization">Нормализовать графики:</label>
-                        <input type="checkbox" id="normalization" name="normalization">
-                    </div>
-                    <div style="margin-top: 10px;">
-                        <label for="period">Период:</label>
-                        <select id="period" name="period">
-                            <option value="7">1 неделя</option>
-                            <option value="30" selected>1 месяц</option>
-                            <option value="90">3 месяца</option>
-                            <option value="180">6 месяцев</option>
-                            <option value="365">1 год</option>
-                        </select>
-                    </div>
-                </div>
+            <div class="summary-item">
+              <div class="summary-value" id="dividends-value">0 ₽</div>
+              <div class="summary-label">Дивиденды</div>
             </div>
+            <div class="summary-item">
+              <div class="summary-value" id="stocks-growth">0%</div>
+              <div class="summary-label">Рост</div>
+            </div>
+          </div>
         </div>
-        
-        <div class="chart-container">
-            <canvas id="stockChart"></canvas>
+
+        <div class="asset-section">
+          <h3>
+            <span><i class="fas fa-hand-holding-usd"></i> Ваши облигации</span>
+            <span id="bonds-total">0</span>
+          </h3>
+          <div class="asset-list" id="bonds-list">
+            <div class="empty-message">Добавьте облигации через поиск</div>
+          </div>
+          <div class="summary">
+            <div class="summary-item">
+              <div class="summary-value" id="bonds-value">0 ₽</div>
+              <div class="summary-label">Общая стоимость</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-value" id="coupons-value">0 ₽</div>
+              <div class="summary-label">Купоны</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-value" id="bonds-growth">0%</div>
+              <div class="summary-label">Рост</div>
+            </div>
+          </div>
         </div>
-        
-        <div class="info-panel">
-            <h3 class="info-title">Информация о котировках</h3>
-            <p>Данные обновляются ежедневно в 19:00 по московскому времени.</p>
-            <p>Выберите сектора для отображения соответствующих графиков.</p>
-            <p>Используйте нормализацию для сравнения относительной динамики вместо абсолютных значений.</p>
+      </div>
+
+      <div class="charts-container">
+        <div class="chart-box">
+          <h3>
+            <span class="icon-wrapper"><i class="fas fa-chart-line"></i></span>
+            Доходность акций
+          </h3>
+          <div class="chart-container">
+            <canvas id="stocks-chart"></canvas>
+          </div>
         </div>
+
+        <div class="chart-box">
+          <h3>
+            <span class="icon-wrapper"><i class="fas fa-chart-area"></i></span>
+            Доходность облигаций
+          </h3>
+          <div class="chart-container">
+            <canvas id="bonds-chart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="edit-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Редактирование актива</h3>
+          <span class="close">&times;</span>
+        </div>
+        <div class="form-group">
+          <label for="edit-quantity">Количество</label>
+          <input
+            type="number"
+            id="edit-quantity"
+            min="1"
+            class="form-control"
+          />
+        </div>
+        <div class="form-group">
+          <label for="edit-price">Цена покупки (₽)</label>
+          <input
+            type="number"
+            id="edit-price"
+            min="0"
+            step="0.01"
+            class="form-control"
+          />
+        </div>
+        <button id="save-changes">Сохранить изменения</button>
+      </div>
     </div>
 
     <script>
-        // Данные по секторам и акциям (в реальном проекте эти данные будут приходить из API)
-        const sectorsData = {
-            'Нефть и газ': {
-                color: '#FF6384',
-                stocks: ['Газпром', 'Роснефть', 'Лукойл', 'Новатэк', 'Татнефть'],
-                data: generateSampleData(30, 2500, 5000)
-            },
-            'Финансы': {
-                color: '#36A2EB',
-                stocks: ['Сбербанк', 'ВТБ', 'Московская биржа', 'Тинькофф'],
-                data: generateSampleData(30, 100, 350)
-            },
-            'Металлы и добыча': {
-                color: '#FFCE56',
-                stocks: ['Норникель', 'Полюс', 'Алроса', 'Северсталь', 'НЛМК'],
-                data: generateSampleData(30, 1500, 3000)
-            },
-            'Технологии': {
-                color: '#4BC0C0',
-                stocks: ['Яндекс', 'Ozon', 'VK', 'Ростелеком', 'МТС'],
-                data: generateSampleData(30, 300, 1200)
-            },
-            'Потребительские товары': {
-                color: '#9966FF',
-                stocks: ['Магнит', 'X5 Group', 'Дикси', 'Черкизово', 'Белуга'],
-                data: generateSampleData(30, 500, 2000)
-            },
-            'Энергетика': {
-                color: '#FF9F40',
-                stocks: ['РусГидро', 'Интер РАО', 'ФСК ЕЭС', 'Россети'],
-                data: generateSampleData(30, 0.5, 2.5)
-            }
-        };
+      // Данные по акциям и облигациям пользователя
+      let userStocks = JSON.parse(localStorage.getItem("userStocks")) || [];
+      let userBonds = JSON.parse(localStorage.getItem("userBonds")) || [];
+      let financialData = { stocks: [], bonds: [] };
 
-        // Генерация случайных данных для демонстрации
-        function generateSampleData(days, minPrice, maxPrice) {
-            const data = [];
-            let currentPrice = (minPrice + maxPrice) / 2;
-            const today = new Date();
-            
-            for (let i = days - 1; i >= 0; i--) {
-                const date = new Date(today);
-                date.setDate(date.getDate() - i);
-                
-                // Генерируем случайное изменение цены (-3% до +3%)
-                const changePercent = (Math.random() * 6) - 3;
-                currentPrice = currentPrice * (1 + changePercent / 100);
-                
-                // Ограничиваем цену заданным диапазоном
-                currentPrice = Math.max(minPrice, Math.min(maxPrice, currentPrice));
-                
-                data.push({
-                    time: date.toISOString().split('T')[0],
-                    value: parseFloat(currentPrice.toFixed(2))
-                });
-            }
-            
-            return data;
-        }
+      // Графики
+      let stocksChart = null;
+      let bondsChart = null;
+      let currentEditItem = null;
 
-        // Инициализация страницы
-        document.addEventListener('DOMContentLoaded', function() {
-            // Заполняем сектора
-            const sectorsContainer = document.getElementById('sectorsContainer');
-            for (const sector in sectorsData) {
-                const sectorItem = document.createElement('div');
-                sectorItem.className = 'sector-item';
-                
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.id = `sector-${sector}`;
-                checkbox.value = sector;
-                checkbox.checked = true;
-                
-                const label = document.createElement('label');
-                label.htmlFor = `sector-${sector}`;
-                label.innerHTML = `${sector} <span style="color: ${sectorsData[sector].color}">●</span>`;
-                
-                sectorItem.appendChild(checkbox);
-                sectorItem.appendChild(label);
-                sectorsContainer.appendChild(sectorItem);
-                
-                // Обработчик изменения состояния checkbox
-                checkbox.addEventListener('change', updateChart);
-            }
-            
-            // Обработчик изменения периода
-            document.getElementById('period').addEventListener('change', updateChart);
-            
-            // Обработчик изменения нормализации
-            document.getElementById('normalization').addEventListener('change', updateChart);
-            
-            // Инициализируем график
-            initializeChart();
+      // CORS-прокси для обхода ограничений
+      const CORS_PROXY = "https://cors-anywhere.herokuapp.com/";
+      const MOEX_BASE_URL = "https://iss.moex.com/iss";
+
+      document.addEventListener("DOMContentLoaded", async function () {
+        // Инициализация интерфейса
+        initTabs();
+        initSearch();
+        renderAssets();
+        initCharts();
+
+        // Загрузка данных с API
+        await loadFinancialData();
+
+        // Обновление графиков и сводки
+        updateCharts();
+        updateSummary();
+
+        // Инициализация модального окна
+        initModal();
+      });
+
+      function initTabs() {
+        const tabs = document.querySelectorAll(".tab");
+        tabs.forEach((tab) => {
+          tab.addEventListener("click", () => {
+            tabs.forEach((t) => t.classList.remove("active"));
+            tab.classList.add("active");
+          });
+        });
+      }
+
+      function initSearch() {
+        const searchBtn = document.getElementById("search-btn");
+        const searchInput = document.getElementById("search-input");
+        const resultsContainer = document.getElementById("search-results");
+
+        searchBtn.addEventListener("click", performSearch);
+        searchInput.addEventListener("keyup", function (event) {
+          if (event.key === "Enter") {
+            performSearch();
+          }
         });
 
-        // Инициализация графика
-        function initializeChart() {
-            const ctx = document.getElementById('stockChart').getContext('2d');
-            
-            // Подготовка данных
-            const chartData = getChartData();
-            
-            // Создание графика
-            window.stockChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    datasets: chartData.datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: {
-                            type: 'time',
-                            time: {
-                                unit: 'day',
-                                tooltipFormat: 'dd MMM yyyy'
-                            },
-                            title: {
-                                display: true,
-                                text: 'Дата'
-                            }
-                        },
-                        y: {
-                            title: {
-                                display: true,
-                                text: 'Цена'
-                            },
-                            beginAtZero: false
-                        }
-                    },
-                    interaction: {
-                        mode: 'index',
-                        intersect: false
-                    },
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return `${context.dataset.label}: ${context.parsed.y.toFixed(2)}`;
-                                }
-                            }
-                        },
-                        legend: {
-                            position: 'top',
-                        }
-                    }
-                }
-            });
+        searchInput.addEventListener("input", function () {
+          if (searchInput.value.length >= 2) {
+            performSearch();
+          } else {
+            resultsContainer.style.display = "none";
+          }
+        });
+
+        function performSearch() {
+          const query = searchInput.value.toLowerCase().trim();
+          if (query.length < 2) {
+            resultsContainer.style.display = "none";
+            return;
+          }
+
+          // Поиск по акциям и облигациям
+          const stockResults = financialData.stocks.filter(
+            (stock) =>
+              stock.name.toLowerCase().includes(query) ||
+              stock.ticker.toLowerCase().includes(query)
+          );
+
+          const bondResults = financialData.bonds.filter(
+            (bond) =>
+              bond.name.toLowerCase().includes(query) ||
+              bond.ticker.toLowerCase().includes(query)
+          );
+
+          const results = [...stockResults, ...bondResults];
+          displayResults(results);
         }
 
-        // Подготовка данных для графика
-        function getChartData() {
-            const sectors = Array.from(document.querySelectorAll('.sector-item input:checked')).map(cb => cb.value);
-            const period = parseInt(document.getElementById('period').value);
-            const normalize = document.getElementById('normalization').checked;
-            
-            const datasets = [];
-            
-            sectors.forEach(sector => {
-                const sectorInfo = sectorsData[sector];
-                if (!sectorInfo) return;
-                
-                // Берем только данные за выбранный период
-                const sectorData = sectorInfo.data.slice(-period);
-                
-                // Нормализуем данные если нужно
-                let displayData = sectorData;
-                if (normalize) {
-                    const firstValue = sectorData[0].value;
-                    displayData = sectorData.map(item => ({
-                        time: item.time,
-                        value: (item.value / firstValue) * 100
-                    }));
+        function displayResults(results) {
+          const resultsContainer = document.getElementById("search-results");
+          resultsContainer.innerHTML = "";
+
+          if (results.length === 0) {
+            resultsContainer.innerHTML =
+              '<div class="result-item">Ничего не найдено</div>';
+          } else {
+            results.forEach((company) => {
+              const item = document.createElement("div");
+              item.className = "result-item";
+
+              const yieldInfo =
+                company.type === "stock"
+                  ? `Дивидендная доходность: ${company.dividendYield || "н/д"}%`
+                  : `Купон: ${company.couponRate || "н/д"}%`;
+
+              item.innerHTML = `
+                    <div>
+                        <strong>${company.name}</strong> (${company.ticker})
+                        <div style="font-size: 0.9rem; color: #7f8c8d; margin-top: 4px;">
+                            ${yieldInfo}
+                        </div>
+                    </div>
+                    <div>
+                        <span style="color: ${
+                          company.type === "stock" ? "#27ae60" : "#9b59b6"
+                        }">
+                            ${company.type === "stock" ? "Акция" : "Облигация"}
+                        </span>
+                        <span style="margin-left: 10px; font-weight: 600;">${
+                          company.price
+                        } ₽</span>
+                    </div>
+                `;
+
+              item.addEventListener("click", () => {
+                const quantity =
+                  parseInt(document.getElementById("quantity-input").value) ||
+                  1;
+                addAsset(company, quantity);
+                searchInput.value = "";
+                resultsContainer.style.display = "none";
+              });
+
+              resultsContainer.appendChild(item);
+            });
+          }
+
+          resultsContainer.style.display = "block";
+        }
+
+        // Скрываем результаты при клике вне области поиска
+        document.addEventListener("click", function (e) {
+          const searchInput = document.getElementById("search-input");
+          const searchBtn = document.getElementById("search-btn");
+          const resultsContainer = document.getElementById("search-results");
+
+          if (
+            !searchInput.contains(e.target) &&
+            !searchBtn.contains(e.target) &&
+            !resultsContainer.contains(e.target)
+          ) {
+            resultsContainer.style.display = "none";
+          }
+        });
+      }
+
+      // Загрузка данных из API Московской биржи
+      async function loadMoexData() {
+        try {
+          // Показываем индикатор загрузки
+          document.getElementById("loading-indicator").style.display = "block";
+
+          // Загрузка акций
+          const stocksResponse = await fetch(
+            `${CORS_PROXY}${MOEX_BASE_URL}/engines/stock/markets/shares/boards/TQBR/securities.json?iss.meta=off&iss.only=securities,marketdata`
+          );
+          const stocksData = await stocksResponse.json();
+
+          // Загрузка облигаций
+          const bondsResponse = await fetch(
+            `${CORS_PROXY}${MOEX_BASE_URL}/engines/stock/markets/bonds/boards/TQOB/securities.json?iss.meta=off&iss.only=securities,marketdata`
+          );
+          const bondsData = await bondsResponse.json();
+
+          return {
+            stocks: processMoexData(stocksData, "stock"),
+            bonds: processMoexData(bondsData, "bond"),
+          };
+        } catch (error) {
+          console.error("Ошибка загрузки данных с Московской биржи:", error);
+          // Показываем сообщение об ошибке
+          showError(
+            "Не удалось загрузить данные с Московской биржи. Пожалуйста, проверьте подключение к интернету и попробуйте позже."
+          );
+          return { stocks: [], bonds: [] };
+        } finally {
+          // Скрываем индикатор загрузки
+          document.getElementById("loading-indicator").style.display = "none";
+        }
+      }
+
+      function processMoexData(data, type) {
+        const securities = data.securities;
+        const marketdata = data.marketdata;
+
+        const result = [];
+
+        if (securities && securities.data && marketdata && marketdata.data) {
+          const secColumns = securities.columns;
+          const marketColumns = marketdata.columns;
+
+          // Создаем маппинг колонок для быстрого доступа
+          const secIdIndex = secColumns.indexOf("secid");
+          const secNameIndex = secColumns.indexOf("secname");
+          const prevPriceIndex = secColumns.indexOf("prevprice");
+          const yieldIndex = marketColumns.indexOf("yield");
+          const couponPercentIndex = marketColumns.indexOf("couponpercent");
+          const lastIndex = marketColumns.indexOf("last");
+          const openIndex = marketColumns.indexOf("open");
+
+          securities.data.forEach((security, index) => {
+            const secId = security[secIdIndex];
+            const name = security[secNameIndex];
+            const ticker = secId; // SECID является тикером на MOEX
+
+            // Находим соответствующие рыночные данные
+            const marketInfo = marketdata.data.find(
+              (m) => m[secIdIndex] === secId
+            );
+
+            if (marketInfo) {
+              // Определяем цену: сначала LAST, потом OPEN, потом PREVPRICE
+              let price =
+                marketInfo[lastIndex] ||
+                marketInfo[openIndex] ||
+                security[prevPriceIndex];
+
+              if (price && price > 0) {
+                let additionalInfo = {};
+
+                if (type === "stock") {
+                  // Для акций пытаемся найти дивидендную доходность
+                  const yieldValue = marketInfo[yieldIndex];
+                  additionalInfo = {
+                    dividendYield: yieldValue ? yieldValue.toFixed(2) : null,
+                  };
+                } else {
+                  // Для облигаций пытаемся найти купонную доходность
+                  const couponPercent = marketInfo[couponPercentIndex];
+                  additionalInfo = {
+                    couponRate: couponPercent ? couponPercent.toFixed(2) : null,
+                  };
                 }
-                
-                datasets.push({
-                    label: sector,
-                    data: displayData,
-                    borderColor: sectorInfo.color,
-                    backgroundColor: `${sectorInfo.color}20`,
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    pointHoverRadius: 5,
-                    fill: false,
-                    tension: 0.1
+
+                result.push({
+                  id: secId,
+                  name: name,
+                  ticker: ticker,
+                  type: type,
+                  price: price,
+                  currency: "RUB",
+                  ...additionalInfo,
                 });
-            });
-            
-            return { datasets };
+              }
+            }
+          });
         }
 
-        // Обновление графика
-        function updateChart() {
-            if (window.stockChart) {
-                const newData = getChartData();
-                window.stockChart.data.datasets = newData.datasets;
-                
-                // Обновляем ось Y в зависимости от нормализации
-                const normalize = document.getElementById('normalization').checked;
-                window.stockChart.options.scales.y.title.text = normalize ? 'Изменение (%)' : 'Цена';
-                
-                window.stockChart.update();
-            }
+        return result;
+      }
+
+      // Показ сообщения об ошибке
+      function showError(message) {
+        // Создаем элемент для отображения ошибки
+        const errorDiv = document.createElement("div");
+        errorDiv.className = "error-message";
+        errorDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #e74c3c;
+        color: white;
+        padding: 15px;
+        border-radius: 5px;
+        z-index: 10000;
+        max-width: 300px;
+    `;
+        errorDiv.textContent = message;
+
+        document.body.appendChild(errorDiv);
+
+        // Удаляем сообщение через 5 секунд
+        setTimeout(() => {
+          if (document.body.contains(errorDiv)) {
+            document.body.removeChild(errorDiv);
+          }
+        }, 5000);
+      }
+
+      // Загрузка данных из бесплатных API
+      async function loadFinancialData() {
+        // Пытаемся загрузить данные с Московской биржи
+        const moexData = await loadMoexData();
+        financialData = moexData;
+      }
+
+      function addAsset(company, quantity) {
+        // Проверяем, есть ли уже этот актив у пользователя
+        if (company.type === "stock") {
+          const existsIndex = userStocks.findIndex(
+            (stock) => stock.id === company.id
+          );
+          if (existsIndex >= 0) {
+            // Если актив уже есть, обновляем количество
+            userStocks[existsIndex].quantity += quantity;
+          } else {
+            // Если актива нет, добавляем новый
+            userStocks.push({
+              id: company.id,
+              name: company.name,
+              ticker: company.ticker,
+              purchasePrice: company.price,
+              currentPrice: company.price,
+              quantity: quantity,
+              dividendYield: company.dividendYield,
+              dividends: [],
+            });
+          }
+        } else {
+          const existsIndex = userBonds.findIndex(
+            (bond) => bond.id === company.id
+          );
+          if (existsIndex >= 0) {
+            // Если актив уже есть, обновляем количество
+            userBonds[existsIndex].quantity += quantity;
+          } else {
+            // Если актива нет, добавляем новый
+            userBonds.push({
+              id: company.id,
+              name: company.name,
+              ticker: company.ticker,
+              purchasePrice: company.price,
+              currentPrice: company.price,
+              quantity: quantity,
+              couponRate: company.couponRate,
+              coupons: [],
+            });
+          }
         }
+
+        saveToLocalStorage();
+        renderAssets();
+        updateCharts();
+        updateSummary();
+      }
+
+      function removeAsset(id, type) {
+        if (type === "stock") {
+          userStocks = userStocks.filter((stock) => stock.id !== id);
+        } else {
+          userBonds = userBonds.filter((bond) => bond.id !== id);
+        }
+
+        saveToLocalStorage();
+        renderAssets();
+        updateCharts();
+        updateSummary();
+      }
+
+      function editAsset(id, type) {
+        let asset;
+        if (type === "stock") {
+          asset = userStocks.find((stock) => stock.id === id);
+        } else {
+          asset = userBonds.find((bond) => bond.id === id);
+        }
+
+        if (asset) {
+          currentEditItem = { id, type };
+          document.getElementById("edit-quantity").value = asset.quantity;
+          document.getElementById("edit-price").value = asset.purchasePrice;
+          document.getElementById("edit-modal").style.display = "flex";
+        }
+      }
+
+      function saveEditedAsset() {
+        if (!currentEditItem) return;
+
+        const quantity =
+          parseInt(document.getElementById("edit-quantity").value) || 1;
+        const price =
+          parseFloat(document.getElementById("edit-price").value) || 0;
+
+        if (currentEditItem.type === "stock") {
+          const index = userStocks.findIndex(
+            (stock) => stock.id === currentEditItem.id
+          );
+          if (index >= 0) {
+            userStocks[index].quantity = quantity;
+            userStocks[index].purchasePrice = price;
+          }
+        } else {
+          const index = userBonds.findIndex(
+            (bond) => bond.id === currentEditItem.id
+          );
+          if (index >= 0) {
+            userBonds[index].quantity = quantity;
+            userBonds[index].purchasePrice = price;
+          }
+        }
+
+        saveToLocalStorage();
+        renderAssets();
+        updateCharts();
+        updateSummary();
+        document.getElementById("edit-modal").style.display = "none";
+      }
+
+      function initModal() {
+        const modal = document.getElementById("edit-modal");
+        const closeBtn = document.querySelector(".close");
+        const saveBtn = document.getElementById("save-changes");
+
+        closeBtn.addEventListener("click", () => {
+          modal.style.display = "none";
+        });
+
+        saveBtn.addEventListener("click", saveEditedAsset);
+
+        window.addEventListener("click", (event) => {
+          if (event.target === modal) {
+            modal.style.display = "none";
+          }
+        });
+      }
+
+      function saveToLocalStorage() {
+        localStorage.setItem("userStocks", JSON.stringify(userStocks));
+        localStorage.setItem("userBonds", JSON.stringify(userBonds));
+      }
+
+      function renderAssets() {
+        const stocksList = document.getElementById("stocks-list");
+        const bondsList = document.getElementById("bonds-list");
+
+        stocksList.innerHTML = "";
+        bondsList.innerHTML = "";
+
+        if (userStocks.length === 0) {
+          stocksList.innerHTML =
+            '<div class="empty-message">Добавьте акции через поиск</div>';
+        } else {
+          userStocks.forEach((stock) => {
+            const currentValue = (stock.currentPrice * stock.quantity).toFixed(
+              2
+            );
+            const purchaseValue = (
+              stock.purchasePrice * stock.quantity
+            ).toFixed(2);
+            const growth = (
+              ((stock.currentPrice - stock.purchasePrice) /
+                stock.purchasePrice) *
+              100
+            ).toFixed(2);
+            const growthClass =
+              growth >= 0 ? "positive-change" : "negative-change";
+
+            const item = document.createElement("div");
+            item.className = "asset-item";
+            item.innerHTML = `
+                <div class="asset-info">
+                    <div class="asset-name">${stock.name}</div>
+                    <div class="asset-ticker">${stock.ticker} | ${
+              stock.quantity
+            } шт.</div>
+                    <div class="asset-details">
+                        <div class="asset-detail">
+                            <span>Покупка: ${stock.purchasePrice} ₽</span>
+                        </div>
+                        <div class="asset-detail">
+                            <span>Текущая: ${stock.currentPrice} ₽</span>
+                        </div>
+                        <div class="asset-detail">
+                            <span>Дивиденды: ${
+                              stock.dividendYield || "н/д"
+                            }%</span>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="asset-value">${currentValue} ₽</div>
+                    <div class="${growthClass}">${growth}%</div>
+                </div>
+                <div class="asset-actions">
+                    <button class="btn-edit" data-id="${
+                      stock.id
+                    }" data-type="stock">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-delete" data-id="${
+                      stock.id
+                    }" data-type="stock">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+            stocksList.appendChild(item);
+          });
+        }
+
+        if (userBonds.length === 0) {
+          bondsList.innerHTML =
+            '<div class="empty-message">Добавьте облигации через поиск</div>';
+        } else {
+          userBonds.forEach((bond) => {
+            const currentValue = (bond.currentPrice * bond.quantity).toFixed(2);
+            const purchaseValue = (bond.purchasePrice * bond.quantity).toFixed(
+              2
+            );
+            const growth = (
+              ((bond.currentPrice - bond.purchasePrice) / bond.purchasePrice) *
+              100
+            ).toFixed(2);
+            const growthClass =
+              growth >= 0 ? "positive-change" : "negative-change";
+
+            const item = document.createElement("div");
+            item.className = "asset-item";
+            item.innerHTML = `
+                <div class="asset-info">
+                    <div class="asset-name">${bond.name}</div>
+                    <div class="asset-ticker">${bond.ticker} | ${
+              bond.quantity
+            } шт.</div>
+                    <div class="asset-details">
+                        <div class="asset-detail">
+                            <span>Покупка: ${bond.purchasePrice} ₽</span>
+                        </div>
+                        <div class="asset-detail">
+                            <span>Текущая: ${bond.currentPrice} ₽</span>
+                        </div>
+                        <div class="asset-detail">
+                            <span>Купон: ${bond.couponRate || "н/д"}%</span>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="asset-value">${currentValue} ₽</div>
+                    <div class="${growthClass}">${growth}%</div>
+                </div>
+                <div class="asset-actions">
+                    <button class="btn-edit" data-id="${
+                      bond.id
+                    }" data-type="bond">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-delete" data-id="${
+                      bond.id
+                    }" data-type="bond">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+            bondsList.appendChild(item);
+          });
+        }
+
+        // Добавляем обработчики событий для кнопок удаления
+        document.querySelectorAll(".btn-delete").forEach((btn) => {
+          btn.addEventListener("click", function () {
+            const id = this.getAttribute("data-id");
+            const type = this.getAttribute("data-type");
+            removeAsset(id, type);
+          });
+        });
+
+        // Добавляем обработчики событий для кнопок редактирования
+        document.querySelectorAll(".btn-edit").forEach((btn) => {
+          btn.addEventListener("click", function () {
+            const id = this.getAttribute("data-id");
+            const type = this.getAttribute("data-type");
+            editAsset(id, type);
+          });
+        });
+
+        // Обновляем счетчики
+        document.getElementById("stocks-total").textContent = userStocks.length;
+        document.getElementById("bonds-total").textContent = userBonds.length;
+      }
+
+      function initCharts() {
+        const stocksCtx = document
+          .getElementById("stocks-chart")
+          .getContext("2d");
+        const bondsCtx = document
+          .getElementById("bonds-chart")
+          .getContext("2d");
+
+        // График для акций
+        stocksChart = new Chart(stocksCtx, {
+          type: "line",
+          data: {
+            datasets: [
+              {
+                label: "Рост стоимости",
+                borderColor: "#3498db",
+                backgroundColor: "rgba(52, 152, 219, 0.1)",
+                fill: true,
+                tension: 0.4,
+                borderWidth: 2,
+                data: [],
+              },
+              {
+                label: "Дивиденды",
+                borderColor: "#27ae60",
+                backgroundColor: "rgba(39, 174, 96, 0.1)",
+                fill: true,
+                tension: 0.4,
+                pointStyle: "circle",
+                pointRadius: 5,
+                pointHoverRadius: 7,
+                borderWidth: 2,
+                data: [],
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: {
+                type: "time",
+                time: {
+                  unit: "month",
+                },
+                title: {
+                  display: true,
+                  text: "Дата",
+                },
+              },
+              y: {
+                title: {
+                  display: true,
+                  text: "Стоимость (руб)",
+                },
+                beginAtZero: true,
+              },
+            },
+            plugins: {
+              tooltip: {
+                mode: "index",
+                intersect: false,
+              },
+              legend: {
+                position: "top",
+              },
+            },
+          },
+        });
+
+        // График для облигаций
+        bondsChart = new Chart(bondsCtx, {
+          type: "line",
+          data: {
+            datasets: [
+              {
+                label: "Рост стоимости",
+                borderColor: "#9b59b6",
+                backgroundColor: "rgba(155, 89, 182, 0.1)",
+                fill: true,
+                tension: 0.4,
+                borderWidth: 2,
+                data: [],
+              },
+              {
+                label: "Купоны",
+                borderColor: "#e74c3c",
+                backgroundColor: "rgba(231, 76, 60, 0.1)",
+                fill: true,
+                tension: 0.4,
+                pointStyle: "circle",
+                pointRadius: 5,
+                pointHoverRadius: 7,
+                borderWidth: 2,
+                data: [],
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: {
+                type: "time",
+                time: {
+                  unit: "month",
+                },
+                title: {
+                  display: true,
+                  text: "Дата",
+                },
+              },
+              y: {
+                title: {
+                  display: true,
+                  text: "Стоимость (руб)",
+                },
+                beginAtZero: true,
+              },
+            },
+            plugins: {
+              tooltip: {
+                mode: "index",
+                intersect: false,
+              },
+              legend: {
+                position: "top",
+              },
+            },
+          },
+        });
+      }
+
+      function updateCharts() {
+        // Если нет данных, отображаем пустые графики
+        if (userStocks.length === 0 && userBonds.length === 0) {
+          stocksChart.data.datasets[0].data = [];
+          stocksChart.data.datasets[1].data = [];
+          bondsChart.data.datasets[0].data = [];
+          bondsChart.data.datasets[1].data = [];
+
+          stocksChart.update();
+          bondsChart.update();
+          return;
+        }
+
+        // Данные для акций
+        const stockData = {
+          growth: [],
+          dividends: [],
+        };
+
+        // Данные для облигаций
+        const bondData = {
+          growth: [],
+          coupons: [],
+        };
+
+        // Генерируем данные за последние 12 месяцев и прогноз на следующий год
+        const now = new Date();
+        const forecastMonths = 12; // Прогноз на 12 месяцев вперед
+
+        // Для акций
+        for (let i = 11; i >= -forecastMonths; i--) {
+          const date = new Date(now);
+          date.setMonth(now.getMonth() - i);
+
+          // Только для прошедших и текущего месяца
+          if (i >= 0) {
+            // Акции - рост стоимости
+            let growthValue = 0;
+            userStocks.forEach((stock) => {
+              const monthlyGrowth =
+                stock.purchasePrice * (1 + (Math.random() * 0.1 - 0.05));
+              growthValue += monthlyGrowth * stock.quantity;
+            });
+
+            stockData.growth.push({
+              x: date.toISOString(),
+              y: growthValue,
+            });
+
+            // Акции - дивиденды (раз в квартал)
+            if (i % 3 === 0) {
+              let dividendValue = 0;
+              userStocks.forEach((stock) => {
+                if (stock.dividendYield) {
+                  dividendValue +=
+                    (stock.purchasePrice *
+                      stock.quantity *
+                      (stock.dividendYield / 100)) /
+                    4;
+                }
+              });
+
+              if (dividendValue > 0) {
+                stockData.dividends.push({
+                  x: date.toISOString(),
+                  y: dividendValue,
+                });
+              }
+            }
+          } else {
+            // Прогноз на будущее
+            const growthTrend = 1 + (Math.random() * 0.08 - 0.04); // Случайный тренд роста
+            let forecastValue = 0;
+
+            if (stockData.growth.length > 0) {
+              const lastValue = stockData.growth[stockData.growth.length - 1].y;
+              forecastValue = lastValue * growthTrend;
+
+              stockData.growth.push({
+                x: date.toISOString(),
+                y: forecastValue,
+              });
+
+              // Дивиденды в прогнозе (раз в квартал)
+              if (Math.abs(i) % 3 === 0) {
+                let dividendValue = 0;
+                userStocks.forEach((stock) => {
+                  if (stock.dividendYield) {
+                    dividendValue +=
+                      ((stock.purchasePrice *
+                        stock.quantity *
+                        (stock.dividendYield / 100)) /
+                        4) *
+                      growthTrend;
+                  }
+                });
+
+                if (dividendValue > 0) {
+                  stockData.dividends.push({
+                    x: date.toISOString(),
+                    y: dividendValue,
+                  });
+                }
+              }
+            }
+          }
+        }
+
+        // Для облигаций
+        for (let i = 11; i >= -forecastMonths; i--) {
+          const date = new Date(now);
+          date.setMonth(now.getMonth() - i);
+
+          // Только для прошедших и текущего месяца
+          if (i >= 0) {
+            // Облигации - рост стоимости
+            let growthValue = 0;
+            userBonds.forEach((bond) => {
+              const monthlyGrowth =
+                bond.purchasePrice * (1 + (Math.random() * 0.03 - 0.015));
+              growthValue += monthlyGrowth * bond.quantity;
+            });
+
+            bondData.growth.push({
+              x: date.toISOString(),
+              y: growthValue,
+            });
+
+            // Облигации - купоны (раз в квартал)
+            if (i % 3 === 0) {
+              let couponValue = 0;
+              userBonds.forEach((bond) => {
+                if (bond.couponRate) {
+                  couponValue +=
+                    (bond.purchasePrice *
+                      bond.quantity *
+                      (bond.couponRate / 100)) /
+                    4;
+                }
+              });
+
+              if (couponValue > 0) {
+                bondData.coupons.push({
+                  x: date.toISOString(),
+                  y: couponValue,
+                });
+              }
+            }
+          } else {
+            // Прогноз на будущее
+            const growthTrend = 1 + (Math.random() * 0.04 - 0.02); // Более стабильный тренд для облигаций
+            let forecastValue = 0;
+
+            if (bondData.growth.length > 0) {
+              const lastValue = bondData.growth[bondData.growth.length - 1].y;
+              forecastValue = lastValue * growthTrend;
+
+              bondData.growth.push({
+                x: date.toISOString(),
+                y: forecastValue,
+              });
+
+              // Купоны в прогнозе (раз в квартал)
+              if (Math.abs(i) % 3 === 0) {
+                let couponValue = 0;
+                userBonds.forEach((bond) => {
+                  if (bond.couponRate) {
+                    couponValue +=
+                      ((bond.purchasePrice *
+                        bond.quantity *
+                        (bond.couponRate / 100)) /
+                        4) *
+                      growthTrend;
+                  }
+                });
+
+                if (couponValue > 0) {
+                  bondData.coupons.push({
+                    x: date.toISOString(),
+                    y: couponValue,
+                  });
+                }
+              }
+            }
+          }
+        }
+
+        // Обновляем графики
+        stocksChart.data.datasets[0].data = stockData.growth;
+        stocksChart.data.datasets[1].data = stockData.dividends;
+
+        bondsChart.data.datasets[0].data = bondData.growth;
+        bondsChart.data.datasets[1].data = bondData.coupons;
+
+        stocksChart.update();
+        bondsChart.update();
+      }
+
+      function updateSummary() {
+        // Расчет общей стоимости акций
+        let stocksTotal = 0;
+        let stocksPurchase = 0;
+        let dividendsTotal = 0;
+        let stocksForecast = 0;
+
+        userStocks.forEach((stock) => {
+          stocksTotal += stock.currentPrice * stock.quantity;
+          stocksPurchase += stock.purchasePrice * stock.quantity;
+
+          if (stock.dividendYield) {
+            dividendsTotal +=
+              stock.purchasePrice *
+              stock.quantity *
+              (stock.dividendYield / 100);
+          }
+
+          // Прогноз на год вперед (рост + дивиденды)
+          const expectedGrowth = stock.currentPrice * 0.08; // Ожидаемый рост 8% в год
+          const expectedDividends = stock.dividendYield
+            ? stock.purchasePrice * stock.quantity * (stock.dividendYield / 100)
+            : 0;
+          stocksForecast +=
+            (stock.currentPrice + expectedGrowth) * stock.quantity +
+            expectedDividends;
+        });
+
+        const stocksGrowth =
+          userStocks.length > 0 && stocksPurchase > 0
+            ? (((stocksTotal - stocksPurchase) / stocksPurchase) * 100).toFixed(
+                2
+              )
+            : 0;
+        const stocksForecastGrowth =
+          userStocks.length > 0 && stocksTotal > 0
+            ? (((stocksForecast - stocksTotal) / stocksTotal) * 100).toFixed(2)
+            : 0;
+
+        // Расчет общей стоимости облигаций
+        let bondsTotal = 0;
+        let bondsPurchase = 0;
+        let couponsTotal = 0;
+        let bondsForecast = 0;
+
+        userBonds.forEach((bond) => {
+          bondsTotal += bond.currentPrice * bond.quantity;
+          bondsPurchase += bond.purchasePrice * bond.quantity;
+
+          if (bond.couponRate) {
+            couponsTotal +=
+              bond.purchasePrice * bond.quantity * (bond.couponRate / 100);
+          }
+
+          // Прогноз на год вперед (купоны)
+          const expectedCoupons = bond.couponRate
+            ? bond.purchasePrice * bond.quantity * (bond.couponRate / 100)
+            : 0;
+          bondsForecast += bond.currentPrice * bond.quantity + expectedCoupons;
+        });
+
+        const bondsGrowth =
+          userBonds.length > 0 && bondsPurchase > 0
+            ? (((bondsTotal - bondsPurchase) / bondsPurchase) * 100).toFixed(2)
+            : 0;
+        const bondsForecastGrowth =
+          userBonds.length > 0 && bondsTotal > 0
+            ? (((bondsForecast - bondsTotal) / bondsTotal) * 100).toFixed(2)
+            : 0;
+
+        // Обновляем значения в интерфейсе
+        document.getElementById("stocks-value").textContent =
+          stocksTotal.toFixed(2) + " ₽";
+        document.getElementById("dividends-value").textContent =
+          dividendsTotal.toFixed(2) + " ₽";
+        document.getElementById("stocks-growth").textContent =
+          stocksGrowth + "%";
+        document.getElementById("stocks-growth").className =
+          stocksGrowth >= 0
+            ? "summary-value positive-change"
+            : "summary-value negative-change";
+
+        document.getElementById("bonds-value").textContent =
+          bondsTotal.toFixed(2) + " ₽";
+        document.getElementById("coupons-value").textContent =
+          couponsTotal.toFixed(2) + " ₽";
+        document.getElementById("bonds-growth").textContent = bondsGrowth + "%";
+        document.getElementById("bonds-growth").className =
+          bondsGrowth >= 0
+            ? "summary-value positive-change"
+            : "summary-value negative-change";
+
+        // Общая стоимость портфеля
+        const totalPortfolio = stocksTotal + bondsTotal;
+        const totalForecast = stocksForecast + bondsForecast;
+        const totalForecastGrowth =
+          totalPortfolio > 0
+            ? (
+                ((totalForecast - totalPortfolio) / totalPortfolio) *
+                100
+              ).toFixed(2)
+            : 0;
+
+        document.getElementById("total-portfolio-value").textContent =
+          totalPortfolio.toFixed(2) +
+          " ₽" +
+          (totalForecastGrowth != 0
+            ? " (" +
+              (totalForecastGrowth >= 0 ? "+" : "") +
+              totalForecastGrowth +
+              "%)"
+            : "");
+      }
     </script>
-</body>
+  </body>
 </html>
